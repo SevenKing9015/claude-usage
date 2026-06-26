@@ -20,9 +20,22 @@ First launch: a normal claude.ai window appears so you can **log in once**
 (session is persisted). After that, press the toggle hotkey and the little HUD
 floats in your corner. If it ever says "login needed", press `Ctrl+Alt+L`.
 
-`npm start` runs with `--no-sandbox` for compatibility. For a bit more isolation
-on the window that loads claude.ai, you can enable the Chromium sandbox (one-time,
-needs root because Electron's `chrome-sandbox` must be setuid):
+## Security: sandbox
+
+**By design, `npm start` runs with `--no-sandbox`.** This is a deliberate default,
+not an oversight: on modern Ubuntu (23.10+) the unprivileged-namespace sandbox is
+blocked by AppArmor, so a freshly-installed Electron started *with* the sandbox
+aborts (`FATAL: chrome-sandbox ... must be owned by root`) unless you first chown
+it to root. Making that the default would mean `npm start` crashes on a clean clone
+for most Linux users — so the out-of-the-box command favours "just works".
+
+The risk is bounded: the window that loads remote content only ever loads
+first-party `claude.ai` (HTTPS), navigation/popups to other origins are blocked,
+the renderer keeps Electron's secure defaults (`nodeIntegration` off), and the HUD
+runs with `contextIsolation`. The OS sandbox is defence-in-depth on top of that.
+
+**For stronger isolation, enable the Chromium sandbox** (recommended if you can).
+One-time setup, needs root because Electron's `chrome-sandbox` must be setuid:
 
 ```bash
 sudo chown root:root node_modules/electron/dist/chrome-sandbox
