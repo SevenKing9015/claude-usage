@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Send a command to a running claude-usage-overlay over its control socket.
-// Usage: overlayctl <toggle|cycle|op+|op-|login|refresh|quit>
+// Usage: overlayctl <toggle|cycle|login|refresh|quit>
 const net = require('net')
 const path = require('path')
 const os = require('os')
@@ -10,7 +10,7 @@ const sock = path.join(base, 'claude-usage-overlay', 'overlay.sock')
 const msg = process.argv.slice(2).join(' ').trim()
 
 if (!msg) {
-  console.error('usage: overlayctl <toggle|cycle|op+|op-|login|refresh|quit>')
+  console.error('usage: overlayctl <toggle|cycle|login|refresh|quit>')
   process.exit(1)
 }
 const c = net.connect(sock, () => c.end(msg + '\n'))

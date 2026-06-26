@@ -22,12 +22,12 @@ BASE=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
 # our shortcuts live under a dedicated prefix so re-running is idempotent and we
 # never clobber unrelated custom0/custom1/... shortcuts the user already has.
 PREFIX=claude-overlay
-KEYS=(toggle cycle op+ op- login refresh quit)
+KEYS=(toggle cycle login refresh quit)
 
-# stable per-action ids (op+/op- aren't path-safe), names, and GNOME bindings
-declare -A ID=(   [toggle]=toggle [cycle]=cycle [op+]=opacity-up [op-]=opacity-down [login]=login [refresh]=refresh [quit]=quit )
-declare -A NAME=( [toggle]="Overlay Toggle" [cycle]="Overlay Cycle Corner" [op+]="Overlay Opacity Up" [op-]="Overlay Opacity Down" [login]="Overlay Login" [refresh]="Overlay Refresh" [quit]="Overlay Quit" )
-declare -A BIND=( [toggle]="<Control><Alt>u" [cycle]="<Control><Alt>c" [op+]="<Control><Alt>bracketright" [op-]="<Control><Alt>bracketleft" [login]="<Control><Alt>l" [refresh]="<Control><Alt>r" [quit]="<Control><Alt>q" )
+# stable per-action ids, names, and GNOME bindings
+declare -A ID=(   [toggle]=toggle [cycle]=cycle [login]=login [refresh]=refresh [quit]=quit )
+declare -A NAME=( [toggle]="Overlay Toggle" [cycle]="Overlay Cycle Corner" [login]="Overlay Login" [refresh]="Overlay Refresh" [quit]="Overlay Quit" )
+declare -A BIND=( [toggle]="<Control><Alt>u" [cycle]="<Control><Alt>c" [login]="<Control><Alt>l" [refresh]="<Control><Alt>r" [quit]="<Control><Alt>q" )
 
 # current list of registered custom-keybinding paths -> bash array
 read_list() {
@@ -70,5 +70,5 @@ done
 gsettings set "$SCHEMA" custom-keybindings "$(to_literal "${NEW[@]}")"
 
 echo "Installed ${#KEYS[@]} overlay shortcuts -> $CTL"
-echo "  Ctrl+Alt+U toggle   Ctrl+Alt+C cycle   Ctrl+Alt+] / [ opacity"
+echo "  Ctrl+Alt+U toggle   Ctrl+Alt+C cycle"
 echo "  Ctrl+Alt+L login    Ctrl+Alt+R refresh Ctrl+Alt+Q quit"

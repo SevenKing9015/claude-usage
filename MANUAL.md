@@ -52,8 +52,6 @@ npm start                 # 啟動(已內建 --no-sandbox)
 |---|---|
 | `Ctrl+Alt+U` | 顯示 / 隱藏卡片 |
 | `Ctrl+Alt+C` | 換到下一個角落(右上 → 右下 → 左下 → 左上) |
-| `Ctrl+Alt+]` | 更不透明(opacity ↑) |
-| `Ctrl+Alt+[` | 更透明(opacity ↓) |
 | `Ctrl+Alt+L` | 開登入視窗 |
 | `Ctrl+Alt+R` | 立刻重新刮一次 |
 | `Ctrl+Alt+Q` | 結束程式 |
@@ -71,9 +69,7 @@ npm start                 # 啟動(已內建 --no-sandbox)
 {
   "url": "https://claude.ai/settings/usage", // 來源頁
   "refreshSeconds": 45,        // 多久刮一次(別調太小,免得一直打 claude.ai)
-  "opacity": 0.92,             // 整個視窗(含文字)的不透明度;快捷鍵 [ ] 調的就是這個
-  "minOpacity": 0.3,           // opacity 快捷鍵能調到的最低值
-  "opacityStep": 0.05,         // 每次按調多少
+  "opacity": 0.92,             // 整個視窗(含文字)的不透明度
   "panelOpacity": 0.85,        // 卡片「底色」的不透明度(文字維持清晰);1=完全實心,越低越透
   "width": 300, "height": 260, // 卡片大小
   "margin": 14,                // 離螢幕邊緣的間距
@@ -123,10 +119,10 @@ X-GNOME-Autostart-enabled=true
 GNOME 設定 → 鍵盤 → 自訂快捷鍵,指令填:
   node /home/tbduser/claude-usage-overlay/overlayctl toggle
   node /home/tbduser/claude-usage-overlay/overlayctl cycle
-  node /home/tbduser/claude-usage-overlay/overlayctl op+
+  node /home/tbduser/claude-usage-overlay/overlayctl refresh
 ```
 
-`overlayctl` 指令:`toggle | cycle | op+ | op- | login | refresh | quit`
+`overlayctl` 指令:`toggle | cycle | login | refresh | quit`
 
 ---
 

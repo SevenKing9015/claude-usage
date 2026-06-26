@@ -10,8 +10,6 @@ const defaultConfig = {
   url: 'https://claude.ai/settings/usage',
   refreshSeconds: 45,
   opacity: 0.92,
-  minOpacity: 0.3,
-  opacityStep: 0.05,
   panelOpacity: 0.85,
   width: 300,
   height: 260,
@@ -21,8 +19,6 @@ const defaultConfig = {
   hotkeys: {
     toggle: 'Control+Alt+U',
     cycleCorner: 'Control+Alt+C',
-    opacityUp: 'Control+Alt+]',
-    opacityDown: 'Control+Alt+[',
     login: 'Control+Alt+L',
     refresh: 'Control+Alt+R',
     quit: 'Control+Alt+Q'
@@ -104,7 +100,6 @@ function place () {
   if (corner.includes('bottom')) y = a.y + a.height - h - m
   hud.setPosition(Math.round(x), Math.round(y))
 }
-function applyOpacity () { if (hud) hud.setOpacity(opacity) }
 
 // ---------- actions ----------
 function toggle () {
@@ -115,10 +110,6 @@ function toggle () {
 function cycleCorner () {
   corner = CORNERS[(CORNERS.indexOf(corner) + 1) % CORNERS.length]
   place(); saveState()
-}
-function bumpOpacity (d) {
-  opacity = Math.min(1, Math.max(cfg.minOpacity, +(opacity + d).toFixed(2)))
-  applyOpacity(); saveState()
 }
 function openLogin () { if (loader) { loader.show(); loader.focus() } }
 function refreshNow () { if (loader) loader.loadURL(cfg.url) } // did-finish-load triggers warmUp
@@ -175,8 +166,6 @@ function registerHotkeys () {
   const h = cfg.hotkeys
   reg(h.toggle, toggle, 'toggle')
   reg(h.cycleCorner, cycleCorner, 'cycleCorner')
-  reg(h.opacityUp, () => bumpOpacity(+cfg.opacityStep), 'opacityUp')
-  reg(h.opacityDown, () => bumpOpacity(-cfg.opacityStep), 'opacityDown')
   reg(h.login, openLogin, 'login')
   reg(h.refresh, refreshNow, 'refresh')
   reg(h.quit, () => { app.isQuitting = true; app.quit() }, 'quit')
@@ -186,8 +175,7 @@ function registerHotkeys () {
 function handleCommand (line) {
   const cmd = line.trim().split(/\s+/)[0]
   const map = {
-    toggle, cycle: cycleCorner, 'op+': () => bumpOpacity(+cfg.opacityStep),
-    'op-': () => bumpOpacity(-cfg.opacityStep), login: openLogin, refresh: refreshNow,
+    toggle, cycle: cycleCorner, login: openLogin, refresh: refreshNow,
     quit: () => { app.isQuitting = true; app.quit() }
   }
   if (map[cmd]) map[cmd](); else console.warn('[overlay] unknown command:', line)

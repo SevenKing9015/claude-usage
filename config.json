@@ -2,8 +2,6 @@
   "url": "https://claude.ai/settings/usage",
   "refreshSeconds": 120,
   "opacity": 1,
-  "minOpacity": 0.3,
-  "opacityStep": 0.05,
   "panelOpacity": 1,
   "width": 360,
   "height": 260,
@@ -13,8 +11,6 @@
   "hotkeys": {
     "toggle": "Control+Alt+U",
     "cycleCorner": "Control+Alt+C",
-    "opacityUp": "Control+Alt+]",
-    "opacityDown": "Control+Alt+[",
     "login": "Control+Alt+L",
     "refresh": "Control+Alt+R",
     "quit": "Control+Alt+Q"

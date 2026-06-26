@@ -26,8 +26,6 @@ floats in your corner. If it ever says "login needed", press `Ctrl+Alt+L`.
 |------------------------|------------------|
 | Show / hide HUD        | `Ctrl+Alt+U`     |
 | Move to next corner    | `Ctrl+Alt+C`     |
-| More opaque            | `Ctrl+Alt+]`     |
-| More transparent       | `Ctrl+Alt+[`     |
 | Open login window      | `Ctrl+Alt+L`     |
 | Refresh now            | `Ctrl+Alt+R`     |
 | Quit                   | `Ctrl+Alt+Q`     |
@@ -55,10 +53,10 @@ won't touch your existing custom shortcuts. Prefer to do it by hand?
 Settings → Keyboard → Custom Shortcuts:
   node /path/to/claude-usage-overlay/overlayctl toggle
   node /path/to/claude-usage-overlay/overlayctl cycle
-  node /path/to/claude-usage-overlay/overlayctl op+
+  node /path/to/claude-usage-overlay/overlayctl refresh
 ```
 
-`overlayctl` commands: `toggle | cycle | op+ | op- | login | refresh | quit`.
+`overlayctl` commands: `toggle | cycle | login | refresh | quit`.
 
 ## Autostart
 
