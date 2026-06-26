@@ -40,11 +40,22 @@ You can also drag the HUD by its header. Everything is editable in `config.json`
 Electron's global hotkeys work on **X11** (your session). On Wayland they may not
 register — in that case bind GNOME custom shortcuts to `overlayctl`:
 
+On GNOME, just run the helper once — it wires up all seven shortcuts to
+`overlayctl` for you (paths resolved from its own location, so it's portable):
+
+```bash
+./setup-wayland-hotkeys.sh          # install / refresh
+./setup-wayland-hotkeys.sh --remove # tear back down
+```
+
+It uses a dedicated `claude-overlay-*` keybinding prefix, so it's idempotent and
+won't touch your existing custom shortcuts. Prefer to do it by hand?
+
 ```
 Settings → Keyboard → Custom Shortcuts:
-  node /home/tbduser/claude-usage-overlay/overlayctl toggle
-  node /home/tbduser/claude-usage-overlay/overlayctl cycle
-  node /home/tbduser/claude-usage-overlay/overlayctl op+
+  node /path/to/claude-usage-overlay/overlayctl toggle
+  node /path/to/claude-usage-overlay/overlayctl cycle
+  node /path/to/claude-usage-overlay/overlayctl op+
 ```
 
 `overlayctl` commands: `toggle | cycle | op+ | op- | login | refresh | quit`.
