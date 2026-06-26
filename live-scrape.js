@@ -1,9 +1,12 @@
 // One-off diagnostic: scrape the LIVE usage page using the saved login session.
+const os = require('os')
+const path = require('path')
 const { app, BrowserWindow } = require('electron')
 const scrapeInPage = require('./scraper')
 const SCRAPE_JS = '(' + scrapeInPage.toString() + ')()'
 
-app.setPath('userData', '/home/tbduser/.config/claude-usage-overlay') // reuse persist:claude login
+// reuse the same persist:claude login the overlay stores (its default userData dir)
+app.setPath('userData', path.join(os.homedir(), '.config', 'claude-usage-overlay'))
 app.commandLine.appendSwitch('no-sandbox')
 app.disableHardwareAcceleration()
 

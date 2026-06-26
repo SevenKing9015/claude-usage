@@ -20,6 +20,16 @@ First launch: a normal claude.ai window appears so you can **log in once**
 (session is persisted). After that, press the toggle hotkey and the little HUD
 floats in your corner. If it ever says "login needed", press `Ctrl+Alt+L`.
 
+`npm start` runs with `--no-sandbox` for compatibility. For a bit more isolation
+on the window that loads claude.ai, you can enable the Chromium sandbox (one-time,
+needs root because Electron's `chrome-sandbox` must be setuid):
+
+```bash
+sudo chown root:root node_modules/electron/dist/chrome-sandbox
+sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+npm run start:sandboxed   # re-do the chown/chmod after any `npm install`
+```
+
 ## Hotkeys (X11)
 
 | Action                 | Default          |

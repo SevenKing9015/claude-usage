@@ -31,8 +31,18 @@
 
 ```bash
 cd ~/claude-usage-overlay
-npm start                 # 啟動(已內建 --no-sandbox)
+npm start                 # 啟動(預設 --no-sandbox,相容性最高)
 ```
+
+> **想更安全(開啟 Chromium 沙箱)?** 載入遠端 claude.ai 的視窗,開沙箱多一層隔離。
+> 但 Electron 的 SUID 沙箱要 `chrome-sandbox` 屬於 root。一次性設定:
+> ```bash
+> sudo chown root:root node_modules/electron/dist/chrome-sandbox
+> sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+> npm run start:sandboxed
+> ```
+> 注意:每次 `npm install` 重裝 electron 後要重設一次。沒設好就會 FATAL 中止,
+> 那就繼續用 `npm start` 即可。
 
 關閉:按 `Ctrl+Alt+Q`,或在另一個終端機 `~/claude-usage-overlay/overlayctl quit`。
 

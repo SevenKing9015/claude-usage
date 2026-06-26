@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, screen, ipcMain } = require('electron')
+const { app, BrowserWindow, globalShortcut, screen, ipcMain, shell } = require('electron')
 
 const fs = require('fs')
 const net = require('net')
@@ -115,11 +115,32 @@ function openLogin () { if (loader) { loader.show(); loader.focus() } }
 function refreshNow () { if (loader) loader.loadURL(cfg.url) } // did-finish-load triggers warmUp
 
 // ---------- windows ----------
+// hosts the loader is allowed to navigate to: claude.ai itself plus the identity
+// providers its login flow legitimately hands off to (Google SSO, etc.).
+const TRUSTED_HOSTS = [/(^|\.)claude\.ai$/, /(^|\.)anthropic\.com$/, /(^|\.)google\.com$/, /(^|\.)googleusercontent\.com$/]
+function isTrusted (u) {
+  try { const h = new URL(u).hostname; return TRUSTED_HOSTS.some(re => re.test(h)) } catch { return false }
+}
 function makeLoader () {
   loader = new BrowserWindow({
     width: 980, height: 760, show: false, skipTaskbar: true,
     title: 'Claude login (usage source)',
+    // nodeIntegration/contextIsolation/sandbox are left at Electron's secure
+    // defaults (off/on/on) — this window renders remote claude.ai content.
     webPreferences: { partition: 'persist:claude', backgroundThrottling: true }
+  })
+  // This window holds a logged-in session, so don't let the page wander off or
+  // spawn popups to arbitrary origins. Trusted auth hosts stay in-app (so SSO
+  // keeps working); anything else is bounced to the real browser instead.
+  loader.webContents.setWindowOpenHandler(({ url }) => {
+    if (isTrusted(url)) return { action: 'allow' }
+    if (/^https?:/i.test(url)) shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  loader.webContents.on('will-navigate', (e, url) => {
+    if (isTrusted(url)) return
+    e.preventDefault()
+    if (/^https?:/i.test(url)) shell.openExternal(url)
   })
   // note: we DON'T load the page here — the first load is scheduled in whenReady so
   // frequent restarts don't hammer Claude. did-finish-load (from refreshNow/scheduled
