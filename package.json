@@ -1,0 +1,17 @@
+{
+  "name": "claude-usage-overlay",
+  "version": "1.0.0",
+  "description": "Floating, always-on-top, semi-transparent overlay for the Claude.ai usage page, with global hotkeys and corner snapping.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron --no-sandbox .",
+    "start:sandboxed": "electron .",
+    "stop": "node overlayctl quit"
+  },
+  "bin": {
+    "overlayctl": "overlayctl"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}

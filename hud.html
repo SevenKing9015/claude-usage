@@ -1,0 +1,228 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { color-scheme: dark; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: transparent; overflow: hidden; user-select: none; }
+  body {
+    font: 12px/1.4 -apple-system, "Segoe UI", Ubuntu, system-ui, sans-serif;
+    color: #ececec;
+  }
+  .card {
+    position: relative;
+    margin: 6px;
+    padding: 10px 12px 8px;
+    border-radius: 14px;
+    background: rgba(24, 24, 27, var(--panel-alpha, 0.85));
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(14px);
+    box-shadow: none;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  /* aquarium sits on the panel bg, below all content */
+  #tank { position: absolute; inset: 0; z-index: 0; pointer-events: none;
+     width: 100%; height: 100%; }
+  .card > *:not(#tank) { position: relative; z-index: 1; }
+  header {
+    -webkit-app-region: drag;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; padding-bottom: 8px; cursor: move;
+  }
+  header .title { font-weight: 600; letter-spacing: .2px; }
+  header .plan { font-size: 10px; color: #a1a1aa; }
+  .rows { display: flex; flex-direction: column; gap: 9px; }
+  .sec-title { font-size: 9.5px; text-transform: uppercase; letter-spacing: .8px; color: #8b8b93; margin-top: 4px; }
+  .row .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .row .label { color: #e4e4e7; }
+  .row .val { color: #a1a1aa; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bar { height: 5px; border-radius: 99px; background: rgba(255,255,255,0.10); margin-top: 4px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 99px; background: #d97757; transition: width .4s ease; }
+  .bar > i.warn { background: #e0a04a; }
+  .bar > i.hot { background: #d6504a; }
+  .note { font-size: 10px; color: #71717a; margin-top: 2px; }
+  footer { display: flex; justify-content: space-between; align-items: center; padding-top: 7px; color: #71717a; font-size: 10px; }
+  footer button, header button {
+    -webkit-app-region: no-drag;
+    background: rgba(255,255,255,0.08); color: #d4d4d8; border: 0;
+    border-radius: 7px; padding: 3px 8px; font: inherit; cursor: pointer;
+  }
+  footer button:hover, header button:hover { background: rgba(255,255,255,0.16); }
+  .center { min-height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; color: #a1a1aa; }
+  .center button { -webkit-app-region: no-drag; background: #d97757; color: #fff; border: 0; border-radius: 8px; padding: 7px 14px; font: inherit; cursor: pointer; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <canvas id="tank"></canvas>
+    <header>
+      <span class="title">Claude usage</span>
+      <span style="display:flex; align-items:center; gap:8px">
+        <span class="plan" id="plan"></span>
+        <button id="refreshBtn" title="Refresh usage now">↻</button>
+      </span>
+    </header>
+    <div class="rows" id="rows"></div>
+    <div class="center" id="center" style="display:none">
+      <div>Not logged in.</div>
+      <button id="loginBtn">Log in to Claude</button>
+    </div>
+    <footer>
+      <span id="updated">loading…</span>
+      <span style="display:flex; gap:6px">
+        <button id="tankBtn" title="Toggle aquarium">🐟</button>
+        <button id="reloadBtn" title="Reload themes">🔄</button>
+      </span>
+    </footer>
+  </div>
+<script>
+  const $ = id => document.getElementById(id)
+  const esc = s => (s == null ? '' : String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])))
+  const cls = p => (p >= 90 ? 'hot' : p >= 70 ? 'warn' : '')
+  const fit = () => { const c = document.querySelector('.card'); if (c) window.overlay.fitHeight(c.offsetHeight + 12) }
+
+  function render (data) {
+    if (!data || data.loggedIn === false) {
+      $('rows').style.display = 'none'
+      $('center').style.display = 'flex'
+      $('plan').textContent = ''
+      $('updated').textContent = data && data.error ? 'error' : 'login needed'
+      requestAnimationFrame(fit)
+      return
+    }
+    $('center').style.display = 'none'
+    $('rows').style.display = 'flex'
+    $('plan').textContent = data.plan || ''
+    const html = []
+    for (const sec of data.sections) {
+      if (sec.title) html.push('<div class="sec-title">' + esc(sec.title) + '</div>')
+      for (const r of sec.rows) {
+        const p = Number.isFinite(r.percent) ? Math.max(0, Math.min(100, r.percent)) : null
+        html.push('<div class="row">')
+        html.push('<div class="top"><span class="label">' + esc(r.label) + '</span><span class="val">' + esc(r.value || (p != null ? p + '%' : '')) + '</span></div>')
+        if (p != null) html.push('<div class="bar"><i class="' + cls(p) + '" style="width:' + p + '%"></i></div>')
+        if (r.note) html.push('<div class="note">' + esc(r.note) + '</div>')
+        html.push('</div>')
+      }
+    }
+    $('rows').innerHTML = html.join('')
+    $('updated').textContent = data.lastUpdated ? 'updated ' + data.lastUpdated : ''
+    requestAnimationFrame(fit)
+  }
+
+  $('loginBtn').onclick = () => window.overlay.openLogin()
+  $('refreshBtn').onclick = () => { $('updated').textContent = 'refreshing…'; window.overlay.refresh() }
+  window.overlay.onData(render)
+  window.overlay.onConfig(c => {
+    if (c && typeof c.panelOpacity === 'number') {
+      document.documentElement.style.setProperty('--panel-alpha', c.panelOpacity)
+    }
+    if (c && typeof c.scene === 'string' && window.__overlayEngine) window.__overlayEngine.set(c.scene)
+  })
+
+  // ---------- theme engine (auto-loads external theme packs from /themes) ----------
+  ;(async () => {
+    const cv = $('tank'), ctx = cv.getContext('2d')
+    const rnd = (a, b) => a + Math.random() * (b - a)
+    const pick = a => a[Math.floor(Math.random() * a.length)]
+    const env = { ctx, rnd, pick, W: 0, H: 0 }
+    let dpr = 1, raf = 0, last = 0, idx = 0
+
+    const themes = []
+    window.registerTheme = t => { if (t && t.key) themes.push(t) }
+    const off = { key: 'off', emoji: '⬛', title: 'Off', draw () {} }
+    let SCENES = [off]
+    let bust = 0 // cache-buster so reloaded theme modules are re-fetched
+
+    // auto-scan /themes and load each pack as an ES module; each calls registerTheme()
+    async function loadThemeFiles () {
+      let files = []
+      try { files = (await window.overlay.listThemes()) || [] } catch (e) { files = [] }
+      const q = bust ? ('?v=' + bust) : ''
+      await Promise.all(files.map(f => new Promise(res => {
+        const s = document.createElement('script')
+        s.type = 'module'; s.src = 'themes/' + f + q
+        s.onload = res
+        s.onerror = () => { console.warn('theme failed to load:', f); res() }
+        document.head.appendChild(s)
+      })))
+    }
+    function rebuild () {
+      themes.sort((a, b) => (a.order == null ? 50 : a.order) - (b.order == null ? 50 : b.order) || (a.title > b.title ? 1 : -1))
+      SCENES = themes.concat([off])
+    }
+
+    function resize () {
+      const card = document.querySelector('.card')
+      if (!card) return
+      const w = card.clientWidth, h = card.clientHeight
+      if (!w || !h) return
+      dpr = window.devicePixelRatio || 1
+      env.W = w; env.H = h
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr)
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      const sc = SCENES[idx]; if (sc && sc.seed) sc.seed(env)
+    }
+    function loop (now) {
+      if (!raf) return
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016
+      last = now
+      ctx.clearRect(0, 0, env.W, env.H)
+      const sc = SCENES[idx]; if (sc && sc.draw) sc.draw(env, now / 1000, dt)
+      raf = requestAnimationFrame(loop)
+    }
+    function start () { if (!raf) { last = 0; raf = requestAnimationFrame(loop) } }
+    function stop () { if (raf) { cancelAnimationFrame(raf); raf = 0 } ctx.clearRect(0, 0, env.W, env.H) }
+    function apply () {
+      const sc = SCENES[idx]
+      if (!sc || sc.key === 'off') { cv.style.display = 'none'; stop() }
+      else { cv.style.display = ''; if (sc.seed) sc.seed(env); start() }
+    }
+
+    const ro = new ResizeObserver(resize)
+    const card = document.querySelector('.card')
+    if (card) ro.observe(card)
+
+    const tankBtn = $('tankBtn')
+    function syncBtn (m) {
+      tankBtn.textContent = m.emoji
+      tankBtn.title = m.title + ' — click to change scene'
+      tankBtn.style.opacity = m.key === 'off' ? '0.4' : '1'
+    }
+    function show () { localStorage.setItem('scene', SCENES[idx].key); apply(); syncBtn(SCENES[idx]) }
+    function restore () {
+      const si = SCENES.findIndex(s => s.key === localStorage.getItem('scene'))
+      idx = si >= 0 ? si : 0
+      resize(); apply(); syncBtn(SCENES[idx])
+    }
+    tankBtn.onclick = () => { idx = (idx + 1) % SCENES.length; show() }
+
+    // hot-reload themes without restarting the app: re-scan /themes, re-import modules
+    async function reload () {
+      const curKey = SCENES[idx] && SCENES[idx].key
+      stop()
+      themes.length = 0
+      bust++
+      await loadThemeFiles()
+      rebuild()
+      const i = SCENES.findIndex(s => s.key === curKey)
+      idx = i >= 0 ? i : 0
+      resize(); apply(); syncBtn(SCENES[idx])
+    }
+    const reloadBtn = $('reloadBtn')
+    if (reloadBtn) reloadBtn.onclick = async () => {
+      const o = reloadBtn.textContent; reloadBtn.textContent = '…'
+      try { await reload() } finally { reloadBtn.textContent = o }
+    }
+
+    // initial load
+    await loadThemeFiles()
+    rebuild()
+    restore()
+    window.__overlayEngine = { set: key => { const i = SCENES.findIndex(s => s.key === key); if (i >= 0) { idx = i; show() } }, reload }
+  })()
+</script>
+</body>
+</html>
