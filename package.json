@@ -1,6 +1,6 @@
 {
   "name": "claude-usage-overlay",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Floating, always-on-top, semi-transparent overlay for the Claude.ai usage page, with global hotkeys and corner snapping.",
   "license": "MIT",
   "main": "main.js",
