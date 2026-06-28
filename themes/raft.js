@@ -23,7 +23,7 @@ const PHASES = {
 let phase = 'sunny', phaseT = 0, nightMode = 'grill'
 let curAmp, curSkyT, curSkyB, curSea
 let sunAmt, moonAmt, rainAmt, snowAmt, fireAmt // smooth 0..1 presences for crossfades
-let surge = 0, surgeCd = 0 // tsunami heave
+let surge = 0, surgeCd = 0, surgePeak = 0, surgeT = 0 // tsunami heave (swells in/out smoothly)
 let rain = [], snow = [], stars = [], clouds = [], gulls = [], leapers = []
 let light = { cd: 0, flash: 0, bolt: null, hold: 0 }
 let WATER = 0, now = 0
@@ -48,7 +48,7 @@ function seed (env) {
   const P = PHASES.sunny
   curAmp = P.amp; curSkyT = P.skyT.slice(); curSkyB = P.skyB.slice(); curSea = P.sea.slice()
   sunAmt = 1; moonAmt = 0; rainAmt = 0; snowAmt = 0; fireAmt = 0
-  surge = 0; surgeCd = 0
+  surge = 0; surgeCd = 0; surgePeak = 0; surgeT = 0
   rain = []; snow = []; leapers = []
   light = { cd: rnd(2, 4), flash: 0, bolt: null, hold: 0 }
   stars = []
@@ -236,12 +236,13 @@ function draw (env, t, dt) {
     if (light.bolt) drawBolt(light.bolt, Math.min(1, light.flash + 0.3))
   }
 
-  // ---- tsunami heave (storm) ----
+  // ---- tsunami heave (storm): swell in and recede smoothly so the sea never pops ----
   if (rainAmt > 0.5) {
     surgeCd -= dt
-    if (surgeCd <= 0) { surge = rnd(16, 28); surgeCd = rnd(5, 10) }
+    if (surgeCd <= 0) { surgePeak = rnd(14, 24); surgeT = rnd(1.5, 3); surgeCd = rnd(7, 13) }
   }
-  surge = Math.max(0, surge - dt * 5)
+  surgeT -= dt
+  surge = approach(surge, surgeT > 0 ? surgePeak : 0, Math.min(1, dt * 1.6))
 
   // ---- sea ----
   const seaG = ctx.createLinearGradient(0, WATER - 20, 0, H)
