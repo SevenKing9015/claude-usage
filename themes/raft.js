@@ -25,6 +25,8 @@ let curAmp, curSkyT, curSkyB, curSea
 let sunAmt, moonAmt, rainAmt, snowAmt, fireAmt // smooth 0..1 presences for crossfades
 let surge = 0, surgeCd = 0, surgePeak = 0, surgeT = 0 // tsunami heave (swells in/out smoothly)
 let rain = [], snow = [], stars = [], clouds = [], gulls = [], leapers = []
+let fishState = 'wait', fishTimer = 0, biteDur = 0, flingStart = [0, 0] // fishing: wait -> bite -> fling-into-box
+let ripples = []
 let light = { cd: 0, flash: 0, bolt: null, hold: 0 }
 let WATER = 0, now = 0
 
@@ -49,7 +51,8 @@ function seed (env) {
   curAmp = P.amp; curSkyT = P.skyT.slice(); curSkyB = P.skyB.slice(); curSea = P.sea.slice()
   sunAmt = 1; moonAmt = 0; rainAmt = 0; snowAmt = 0; fireAmt = 0
   surge = 0; surgeCd = 0; surgePeak = 0; surgeT = 0
-  rain = []; snow = []; leapers = []
+  rain = []; snow = []; leapers = []; ripples = []
+  fishState = 'wait'; fishTimer = rnd(3, 7); biteDur = 0
   light = { cd: rnd(2, 4), flash: 0, bolt: null, hold: 0 }
   stars = []
   const sn = Math.min(60, Math.round(W * H * 0.6 / 3000))
@@ -120,15 +123,25 @@ function drawFire (x, t, amt) {
 // --- the captain, per mood (raft-local coords; deck top at y = -3) ---
 function skin () { ctx.fillStyle = '#caa06f' }
 function clothes () { ctx.fillStyle = '#7a4a3a' }
-function drawCaptainFishing (t) {
-  const bob = Math.sin(t * 2) * 0.6
+function drawBox () {
+  // wooden catch crate on the deck, open at the top
+  ctx.fillStyle = '#7a5230'; ctx.beginPath(); ctx.roundRect(6, -9, 11, 7, 1.5); ctx.fill()
+  ctx.fillStyle = '#2a1c10'; ctx.beginPath(); ctx.ellipse(11.5, -9, 5, 1.4, 0, 0, TAU); ctx.fill() // open top
+  ctx.strokeStyle = '#5e3d20'; ctx.lineWidth = 0.8; ctx.strokeRect(6, -9, 11, 7)
+  ctx.beginPath(); ctx.moveTo(6, -5.5); ctx.lineTo(17, -5.5); ctx.stroke() // plank seam
+  ctx.fillStyle = '#9fb8c4'; ctx.beginPath(); ctx.ellipse(13, -9.2, 1.8, 0.8, -0.5, 0, TAU); ctx.fill() // a tail poking out
+}
+function drawCaptainFishing (t, recoil) {
+  const bob = Math.sin(t * 2) * 0.6, r = recoil || 0
   ctx.save(); ctx.translate(-9, bob)
   clothes(); ctx.fillRect(-2, -11, 4, 8) // torso
   skin(); ctx.beginPath(); ctx.arc(0, -13, 2.2, 0, TAU); ctx.fill() // head
   ctx.fillStyle = '#caa46a'; ctx.beginPath(); ctx.ellipse(0, -14.4, 3.6, 1.2, 0, 0, TAU); ctx.fill() // straw hat
+  // arm + rod swing from cast (r=0) back over the shoulder (r=1) for the yank
+  const hx = -7 + r * 7, hy = -12 - r * 4, tx = -20 + r * 28, ty = -17 - r * 6
   ctx.strokeStyle = '#caa06f'; ctx.lineWidth = 1.4; ctx.lineCap = 'round'
-  ctx.beginPath(); ctx.moveTo(-1, -9); ctx.lineTo(-7, -12); ctx.stroke() // arm to rod
-  ctx.strokeStyle = '#7a5a2a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-7, -12); ctx.lineTo(-20, -17); ctx.stroke() // rod
+  ctx.beginPath(); ctx.moveTo(-1, -9); ctx.lineTo(hx, hy); ctx.stroke() // arm
+  ctx.strokeStyle = '#7a5a2a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx, ty); ctx.stroke() // rod
   ctx.restore()
 }
 function drawCaptainTiller (t) {
@@ -185,6 +198,7 @@ function draw (env, t, dt) {
     phaseT = 60
     if (phase === 'night') nightMode = Math.random() < 0.5 ? 'grill' : 'sleep'
     if (phase === 'storm') { light.cd = rnd(1.2, 2.6); surgeCd = rnd(3, 6) }
+    if (phase === 'sunny') { fishState = 'wait'; fishTimer = rnd(3, 7) }
   }
   const P = PHASES[phase]
   curAmp = approach(curAmp, P.amp, k)
@@ -261,35 +275,80 @@ function draw (env, t, dt) {
     for (let x = W * 0.62; x < W * 0.92; x += 9) { const yy = seaY(x); ctx.fillRect(x, yy + 1, rnd(3, 7), 1) }
   }
 
-  // ---- raft + captain ----
+  // ---- raft geometry ----
   const rx = W * 0.5 + Math.sin(t * 0.3) * W * 0.05 * (1 + rainAmt)
   const ry = seaY(rx) - 1
   const tilt = Math.atan(seaSlope(rx))
+  const cT = Math.cos(tilt), sT = Math.sin(tilt)
+  const toW = (lx, ly) => [rx + lx * cT - ly * sT, ry + lx * sT + ly * cT]
+  const bob = Math.sin(t * 2) * 0.6
+  const rodWorld = toW(-29, -17 + bob) // rod tip in world space
+  const boxWorld = toW(11, -8)         // mouth of the deck crate
+
+  // ---- fishing cycle (sunny): bobber bobs, ripples fan out and fade, then the catch is flicked into the box ----
+  let recoil = 0, lineEnd = null, bobberAt = null, flungFish = null
+  if (phase === 'sunny') {
+    const bx = rx - 40, byW = seaY(bx)
+    fishTimer -= dt
+    if (fishState === 'wait') {
+      bobberAt = [bx, byW + Math.sin(t * 3) * 0.8]; lineEnd = bobberAt
+      if (Math.random() < dt * 1.4) ripples.push({ x: bx, r0: rnd(9, 14), life: 0, dur: rnd(1.8, 2.6), str: 0.22 })
+      if (fishTimer <= 0) { fishState = 'bite'; biteDur = rnd(1.3, 1.9); fishTimer = biteDur }
+    } else if (fishState === 'bite') {
+      bobberAt = [bx, byW + Math.sin(t * 18) * 1.9]; lineEnd = bobberAt // sharp up/down jiggle
+      const bp = 1 - Math.max(0, fishTimer / biteDur) // strike builds 0 -> 1
+      if (Math.random() < dt * 7) ripples.push({ x: bx, r0: rnd(10, 16), life: 0, dur: rnd(1.8, 2.6), str: 0.35 + bp * 0.4 })
+      if (fishTimer <= 0) { fishState = 'fling'; fishTimer = 0.6; flingStart = [bx, byW] }
+    } else { // fling: yank the fish in an arc, back onto the deck crate
+      const p = Math.min(1, 1 - Math.max(0, fishTimer) / 0.6)
+      const fx = flingStart[0] + (boxWorld[0] - flingStart[0]) * p
+      const fy = flingStart[1] + (boxWorld[1] - flingStart[1]) * p - 42 * Math.sin(p * Math.PI)
+      flungFish = [fx, fy, p * 9] // arcs through the air, spinning
+      recoil = Math.max(0, 1 - p * 1.4) // rod snaps back hardest at the start of the flick
+      if (fishTimer <= 0) { fishState = 'wait'; fishTimer = rnd(3, 7) }
+    }
+  }
+
+  // ---- ripples on the water: flat, expanding, fading out as they spread ----
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const r = ripples[i]; r.life += dt; const k = r.life / r.dur
+    if (k >= 1) { ripples.splice(i, 1); continue }
+    const rr = 2 + k * r.r0, yy = seaY(r.x) + 2.5 // ride the wave, sitting a touch lower on the surface
+    ctx.globalAlpha = r.str * (1 - k) // most visible at the centre, fainter as it widens
+    ctx.strokeStyle = '#eaf4f8'; ctx.lineWidth = 0.9
+    ctx.beginPath(); ctx.ellipse(r.x, yy, rr, rr * 0.18, 0, 0, TAU); ctx.stroke()
+  }
+  ctx.globalAlpha = 1
+
+  // ---- raft + captain + catch box ----
   ctx.save(); ctx.translate(rx, ry); ctx.rotate(tilt)
-  // bamboo bundle
-  ctx.fillStyle = '#bd8e4f'; ctx.beginPath(); ctx.roundRect(-24, -4, 48, 6, 3); ctx.fill()
+  ctx.fillStyle = '#bd8e4f'; ctx.beginPath(); ctx.roundRect(-24, -4, 48, 6, 3); ctx.fill() // bamboo bundle
   ctx.strokeStyle = '#7c5a28'; ctx.lineWidth = 0.8
   for (let lx = -20; lx <= 20; lx += 6) { ctx.beginPath(); ctx.moveTo(lx, -4); ctx.lineTo(lx, 2); ctx.stroke() }
   ctx.fillStyle = '#5e421d'; ctx.fillRect(-14, -4.5, 2, 7); ctx.fillRect(12, -4.5, 2, 7) // lashings
-  // mood-specific contents
   if (fireAmt > 0.05) drawFire(2, t, fireAmt)
-  if (phase === 'sunny') drawCaptainFishing(t)
+  if (phase === 'sunny') { drawBox(); drawCaptainFishing(t, recoil) }
   else if (phase === 'storm') drawCaptainTiller(t)
   else if (phase === 'snow') drawCaptainCurled(t)
   else if (nightMode === 'grill') drawCaptainGrill(t)
   else drawCaptainSleep(t)
-  // remember the rod tip in world space for the fishing line
-  let rodWorld = null
-  if (phase === 'sunny') { const c = Math.cos(tilt), s = Math.sin(tilt); const lx = -29, ly = -17 + Math.sin(t * 2) * 0.6; rodWorld = [rx + lx * c - ly * s, ry + lx * s + ly * c] }
   ctx.restore()
 
-  // fishing line + bobber on the open water (world space)
-  if (rodWorld) {
-    const bx = rx - 40, by = seaY(bx)
+  // ---- fishing line / bobber / flung catch (world space, drawn over the raft) ----
+  if (lineEnd) {
     ctx.strokeStyle = 'rgba(240,240,240,0.6)'; ctx.lineWidth = 0.7
-    ctx.beginPath(); ctx.moveTo(rodWorld[0], rodWorld[1]); ctx.lineTo(bx, by); ctx.stroke()
-    ctx.fillStyle = '#d6504a'; ctx.beginPath(); ctx.arc(bx, by, 1.6, 0, TAU); ctx.fill()
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by - 0.4, 0.7, 0, TAU); ctx.fill()
+    ctx.beginPath(); ctx.moveTo(rodWorld[0], rodWorld[1]); ctx.lineTo(lineEnd[0], lineEnd[1]); ctx.stroke()
+  }
+  if (bobberAt) {
+    ctx.fillStyle = '#d6504a'; ctx.beginPath(); ctx.arc(bobberAt[0], bobberAt[1], 1.6, 0, TAU); ctx.fill()
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bobberAt[0], bobberAt[1] - 0.4, 0.7, 0, TAU); ctx.fill()
+  }
+  if (flungFish) {
+    ctx.save(); ctx.translate(flungFish[0], flungFish[1]); ctx.rotate(flungFish[2]); ctx.fillStyle = '#9fb8c4'
+    ctx.beginPath(); ctx.ellipse(0, 0, 3.4, 1.6, 0, 0, TAU); ctx.fill()
+    ctx.beginPath(); ctx.moveTo(-3.4, 0); ctx.lineTo(-5.4, -1.6); ctx.lineTo(-5.4, 1.6); ctx.closePath(); ctx.fill()
+    ctx.fillStyle = '#22303a'; ctx.beginPath(); ctx.arc(2, -0.4, 0.5, 0, TAU); ctx.fill()
+    ctx.restore()
   }
 
   // ---- leaping fish (calm weather) ----
